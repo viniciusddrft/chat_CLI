@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <pthread.h>
+#include <omp.h>
 // bibliotecas para sockets
 #include <netdb.h>//só precisa dessa
 
@@ -13,6 +14,8 @@
 
 
 void server(){
+
+    
     //struct usadas na parte do servidor
     struct sockaddr_in localhost;
     struct sockaddr_in cliente;
@@ -31,7 +34,7 @@ void server(){
     char mensagem[4096];
     char apelido[31];
 
-    meu_socket = socket(AF_INET, SOCK_STREAM, 0);
+    meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
 
     //teste pra ver se o socket foi criado com sucesso
     if (meu_socket == -1){
@@ -61,7 +64,7 @@ void server(){
     printf("Dê um apelido a pessoa que vai se conectar á você : ");
     scanf("%s", apelido);
     //------------------------------------------------------------------------------------------------
-    void receber_msg(){
+    void *receber_msg(){
  		if((tamanho_da_resposta = recv(cliente_socket,mensagem,LEN,0)) > 0){
             mensagem[tamanho_da_resposta-1] = '\0';
 
@@ -76,7 +79,9 @@ void server(){
         }
     }
     //------------------------------------------------------------------------------------------------
-    void enviar_msg(){
+    void *enviar_msg(){
+        time(&segundos);
+        data_hora_atual = localtime(&segundos);
         printf("%d:%d:%d| Você -> ",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec);
         // scanf pega o texto ate achar uma palavra em branco apenas por isso ele só pega uma palavra
         fgets(mensagem,LEN,stdin);//diferente do scanf eu consigo com essa função mandar mensagens com mais de uma palavra;
@@ -85,12 +90,15 @@ void server(){
             close(cliente_socket);
         }
     }
+    pthread_t thread_server_receber_msg, thread_server_enviar_msg;
     //------------------------------------------------------------------------------------------------
     if(send(cliente_socket,mensagem, strlen(mensagem), 0)){//envia a mensagem uma unica vez
 		printf("Aguardando resposta...\n");
 		while(true){//começo do loop de mensagens
-            receber_msg();
-            enviar_msg();
+            pthread_create(&thread_server_receber_msg,NULL, receber_msg, NULL);
+            pthread_create(&thread_server_enviar_msg,NULL, enviar_msg, NULL);
+            pthread_join(thread_server_receber_msg,NULL);
+            pthread_join(thread_server_enviar_msg,NULL);
 		}
 	}
     close(meu_socket);
@@ -114,7 +122,7 @@ void cliente(){
 	char mensagem[4096];
     char apelido[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
 
-    meu_socket = socket(AF_INET, SOCK_STREAM, 0);
+    meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
 
 	if (meu_socket == -1)
 	{
@@ -139,7 +147,7 @@ void cliente(){
 		exit(1);
 	}
     //------------------------------------------------------------------------------------------------
-    void receber_msg(){
+    void *receber_msg(){
         if((tamanho_da_mensagem = recv(meu_socket,mensagem,LEN,0)) > 0){
 		    mensagem[tamanho_da_mensagem-1] = '\0';
             if (!strcmp(mensagem,"exit")){//refatorar
@@ -154,7 +162,9 @@ void cliente(){
 		}
     }
     //------------------------------------------------------------------------------------------------
-    void enviar_msg(){
+    void *enviar_msg(){
+        time(&segundos);
+        data_hora_atual = localtime(&segundos);
         memset(mensagem, 0x0,LEN);
         printf("%d:%d:%d| Você -> ",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec);
         //scanf("%s", &mensagem);
@@ -165,10 +175,14 @@ void cliente(){
 	        close(meu_socket);
         }
     }
+    pthread_t thread_cliente_receber_msg, thread_cliente_enviar_msg;
+
     //------------------------------------------------------------------------------------------------
     while(true){
-        receber_msg();
-        enviar_msg();
+        pthread_create(&thread_cliente_receber_msg,NULL, receber_msg, NULL);
+        pthread_create(&thread_cliente_enviar_msg,NULL, enviar_msg, NULL);
+        pthread_join(thread_cliente_receber_msg,NULL);
+        pthread_join(thread_cliente_enviar_msg,NULL);
 	}
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------
