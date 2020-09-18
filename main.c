@@ -1,224 +1,240 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
-#include <stdbool.h>
-#include <time.h>
-#include <pthread.h>
-#include <omp.h>
-// bibliotecas para sockets
-#include <netdb.h>//só precisa dessa
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
-#define LEN 4096
+#define MSG_SIZE 80
+#define MAX_CLIENTS 95
+#define MYPORT 7400
 
+void manual();
 
+void exitClient(int fd, fd_set *readfds, char fd_array[], int *num_clients);
 
-void server(){
-
+int main(int argc, char *argv[]) {
+    int i=0;
     
-    //struct usadas na parte do servidor
-    struct sockaddr_in localhost;
-    struct sockaddr_in cliente;
-    struct tm *data_hora_atual;//ponteiro para o struct
+    int port = 80;
+    int num_clients = 0;
+    int server_sockfd, client_sockfd;
+    struct sockaddr_in server_address;
+    int addresslen = sizeof(struct sockaddr_in);
+    int fd;
+    char fd_array[MAX_CLIENTS];
+    fd_set readfds, testfds, clientfds;
+    char msg[MSG_SIZE + 1];     
+    char kb_msg[MSG_SIZE + 10]; 
+    
+    //Client variables
+    int sockfd;
+    int result;
+    char hostname[MSG_SIZE];
+    struct hostent *hostinfo;
+    struct sockaddr_in address;
+    char alias[MSG_SIZE];
+    int clientid;
 
-    //constantes usadas na parte do servidor
-    const int PORTA = 3000;
+    void client(){
+        sscanf(argv[3],"%i",&port);
+        strcpy(hostname,argv[4]);
 
-    time_t segundos; // variável usada para o tempo
+        printf("\n*** Client program starting (enter \"quit\" to stop): \n");
 
-    //variáveis usadas na parte do servidor
-    int cliente_socket;
-    int meu_socket;
-    int tamanho = sizeof(cliente);
-    int tamanho_da_resposta;
-    char mensagem[4096];
-    char apelido[31];
+        fflush(stdout);
+        
+        
+        /* Create a socket for the client */
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        
 
-    meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
+        hostinfo = gethostbyname(hostname);  /* look for host's name */
+        address.sin_addr = *(struct in_addr *)*hostinfo -> h_addr_list;
+        address.sin_family = AF_INET;
+        address.sin_port = htons(port);
 
-    //teste pra ver se o socket foi criado com sucesso
-    if (meu_socket == -1){
-		perror("socket");
-		exit(1);
-	}
-	else{
-		printf("socket criado com sucesso\n");
-	}
 
-    localhost.sin_family = AF_INET;// definindo protocolo
-	localhost.sin_port = htons(PORTA);
-	memset(localhost.sin_zero, 0x0, 8);
+        if(connect(sockfd, (struct sockaddr *)&address, sizeof(address)) < 0){
+            perror("connecting");
+            exit(1);
+        }
+        
+        fflush(stdout);
+        
+        FD_ZERO(&clientfds);
+        FD_SET(sockfd,&clientfds);
+        FD_SET(0,&clientfds);//stdin
 
-    if (bind(meu_socket,(struct sockaddr*)&localhost,sizeof(localhost)) == -1){// atribui o socket a uma porta
-		perror("bind ");
-		exit(1);
-	}
-    listen(meu_socket,1);
+        while (1) {
+            testfds=clientfds;
+            select(FD_SETSIZE,&testfds,NULL,NULL,NULL);
+            
+            for(fd=0;fd<FD_SETSIZE;fd++){
+                if(FD_ISSET(fd,&testfds)){
+                    if(fd==sockfd){   /*Accept data from open socket */
 
-	if((cliente_socket = accept(meu_socket,(struct sockaddr*)&cliente, &tamanho)) == -1){//aceita a conexão do cliente e se der erro ele já trata
-		perror("accept ");
-		exit(1);
-	}
-    strcpy(mensagem,"seja bem-vindo\n\0");//mensagem a ser enviada no começo da conexão
+                        result = read(sockfd, msg, MSG_SIZE);
+                        msg[result] = '\0';  /* Terminate string with null */
+                        printf("%s", msg +1);// mostra as msg recebidas
+                        
+                        if (msg[0] == 'X') {                   
+                            close(sockfd);
+                            exit(0);
+                        }                             
+                    }
+                    else if(fd == 0){ /*process keyboard activiy*/
 
-    printf("Dê um apelido a pessoa que vai se conectar á você : ");
-    scanf("%s", apelido);
-    //------------------------------------------------------------------------------------------------
-    void *receber_msg(){
- 		if((tamanho_da_resposta = recv(cliente_socket,mensagem,LEN,0)) > 0){
-            mensagem[tamanho_da_resposta-1] = '\0';
+                        
+                        fgets(kb_msg, MSG_SIZE+1, stdin);
+                        //printf("%s\n",kb_msg);
+                        if (strcmp(kb_msg, "quit\n")==0) {
+                            sprintf(msg, "XClient is shutting down.\n");
+                            write(sockfd, msg, strlen(msg));
+                            close(sockfd); //close the current client
+                            exit(0); //end program
+                        }
+                        else {
+                            sprintf(msg, "M%s", kb_msg);
+                            write(sockfd, msg, strlen(msg));
+                        }                                                 
+                    }          
+                }
+            }      
+        }
+    }//end void client
 
-            if (!strcmp(mensagem,"exit")){//codigo para encerar o servidor quando o cliente encerar o socket dele
-                close(cliente_socket);//refatorar
+    void server(){
+                sscanf(argv[3],"%i",&port);
+        printf("\n*** Server program starting (enter \"quit\" to stop): \n");
+        fflush(stdout);
+
+        /* Create and name a socket for the server */
+        server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        server_address.sin_family = AF_INET;
+        server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+        server_address.sin_port = htons(port);
+        bind(server_sockfd, (struct sockaddr *)&server_address, addresslen);
+
+        /* Create a connection queue and initialize a file descriptor set */
+        listen(server_sockfd, 1);
+        FD_ZERO(&readfds);
+        FD_SET(server_sockfd, &readfds);
+        FD_SET(0, &readfds);  /* Add keyboard to file descriptor set */
+        
+
+        while (1) {
+            testfds = readfds;
+            select(FD_SETSIZE, &testfds, NULL, NULL, NULL);
+                        
+            /* If there is activity, find which descriptor it's on using FD_ISSET */
+            for (fd = 0; fd < FD_SETSIZE; fd++) {
+                if (FD_ISSET(fd, &testfds)) {
+                    if (fd == server_sockfd) { /* Accept a new connection request */
+                        client_sockfd = accept(server_sockfd, NULL, NULL);
+
+                        
+                                        
+                        if (num_clients < MAX_CLIENTS) {
+                            FD_SET(client_sockfd, &readfds);
+                            fd_array[num_clients]=client_sockfd;
+                            /*Client ID*/
+                            printf("Client %d joined\n",num_clients++);
+                            fflush(stdout);
+                            
+                            sprintf(msg,"M%2d",client_sockfd);
+                            /*write 2 byte clientID */
+                            send(client_sockfd,msg,strlen(msg),0);
+                        }
+                        else {
+                            sprintf(msg, "XSorry, too many clients.  Try again later.\n");
+                            write(client_sockfd, msg, strlen(msg));
+                            close(client_sockfd);
+                        }
+                    }
+                    else if (fd == 0)  {  /* Process keyboard activity */                 
+                        fgets(kb_msg, MSG_SIZE + 1, stdin);
+
+                        if (strcmp(kb_msg, "quit\n")==0) {
+                            sprintf(msg, "XServer is shutting down.\n");
+                            for (i = 0; i < num_clients ; i++) {
+                                write(fd_array[i], msg, strlen(msg));
+                                close(fd_array[i]);
+                            }
+                            close(server_sockfd);
+                            exit(0);
+                        }
+                        else {
+                            sprintf(msg, "M%s", kb_msg);
+                            for (i = 0; i < num_clients ; i++)
+                            write(fd_array[i], msg, strlen(msg));
+                        }
+                    }
+                    else if(fd) { 
+                        result = read(fd, msg, MSG_SIZE);
+                        
+                        if(result==-1) perror("read()");
+                        else if(result>0){
+                            /*read 2 bytes client id*/
+                            sprintf(kb_msg,"M%2d",fd);
+                            msg[result]='\0';
+                            
+                            /*concatinate the client id with the client's message*/
+                            strcat(kb_msg,msg+1);                                        
+                            
+                            //print to other clients
+                            for(i=0;i<num_clients;i++){
+                                if (fd_array[i] != fd)  
+                                    write(fd_array[i],kb_msg,strlen(kb_msg));
+                            }
+                            //print to server
+                            printf("%s",kb_msg+1);
+                            
+
+                            if(msg[0] == 'X'){
+                                exitClient(fd,&readfds, fd_array,&num_clients);
+                            }   
+                        }                                   
+                    }                  
+                    else {
+                        exitClient(fd,&readfds, fd_array,&num_clients);
+                    }
+                }
             }
-
-            time(&segundos);
-            data_hora_atual = localtime(&segundos);
-
-            printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, apelido, mensagem);
         }
+    }//end void server
+
+    if(argc==5 && !strcmp("--client",argv[1]) && !strcmp("-p",argv[2])){
+        client();
     }
-    //------------------------------------------------------------------------------------------------
-    void *enviar_msg(){
-        time(&segundos);
-        data_hora_atual = localtime(&segundos);
-        printf("%d:%d:%d| Você -> ",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec);
-        // scanf pega o texto ate achar uma palavra em branco apenas por isso ele só pega uma palavra
-        fgets(mensagem,LEN,stdin);//diferente do scanf eu consigo com essa função mandar mensagens com mais de uma palavra;
-        (send(cliente_socket,mensagem, strlen(mensagem), 0));
-        if (!strcmp(mensagem,"exit")){//refatorar  
-            close(cliente_socket);
-        }
-    }
-    pthread_t thread_server_receber_msg, thread_server_enviar_msg;
-    //------------------------------------------------------------------------------------------------
-    if(send(cliente_socket,mensagem, strlen(mensagem), 0)){//envia a mensagem uma unica vez
-		printf("Aguardando resposta...\n");
-		while(true){//começo do loop de mensagens
-            pthread_create(&thread_server_receber_msg,NULL, receber_msg, NULL);
-            pthread_create(&thread_server_enviar_msg,NULL, enviar_msg, NULL);
-            pthread_join(thread_server_receber_msg,NULL);
-            pthread_join(thread_server_enviar_msg,NULL);
-		}
-	}
-    close(meu_socket);
-	printf("Servidor Encerrado\n");
-}
-//---------------------------------------------------------------------------------------------------------------------------------------------
-void cliente(){
-    //struct usadas na parte do cliente
-    struct sockaddr_in servidor;
-    struct tm *data_hora_atual; //ponteiro para o struct
+   
 
-    //constantes usadas na parte do cliente
-    const int PORTA = 3000;
-
-    time_t segundos; // variável usada para o tempo
-
-    //variáveis usadas na parte do cliente
-    int meu_socket;
-	int tamanho = sizeof(servidor);
-	int tamanho_da_mensagem;
-	char mensagem[4096];
-    char apelido[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
-
-    meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
-
-	if (meu_socket == -1)
-	{
-		perror("socket");
-		exit(1);
-	}
-	else
-	{
-		printf("socket criado com sucesso\n");
-	}
-
-    printf("Dê um apelido a pessoa que você ira se conectar : ");
-    scanf("%s", apelido);
-
-	servidor.sin_family = AF_INET;// definindo protocolo
-	servidor.sin_port = htons(PORTA); 
-	servidor.sin_addr.s_addr = inet_addr("127.0.0.1");//ip do servidor que desejamos nos conectar
-	memset(servidor.sin_zero, 0x0, 8);
-
-    if((connect(meu_socket,(struct sockaddr*)&servidor, tamanho)) == -1){
-		perror("connect ");
-		exit(1);
-	}
-    //------------------------------------------------------------------------------------------------
-    void *receber_msg(){
-        if((tamanho_da_mensagem = recv(meu_socket,mensagem,LEN,0)) > 0){
-		    mensagem[tamanho_da_mensagem-1] = '\0';
-            if (!strcmp(mensagem,"exit")){//refatorar
-                printf("Cliente Encerrado\n");
-	            close(meu_socket);
-            }    
-
-            time(&segundos);
-            data_hora_atual = localtime(&segundos);
-
-			printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, apelido, mensagem);
-		}
-    }
-    //------------------------------------------------------------------------------------------------
-    void *enviar_msg(){
-        time(&segundos);
-        data_hora_atual = localtime(&segundos);
-        memset(mensagem, 0x0,LEN);
-        printf("%d:%d:%d| Você -> ",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec);
-        //scanf("%s", &mensagem);
-        fgets(mensagem,LEN,stdin);// codigo que eu usava antes e foi trocado pela linha de cima
-        send(meu_socket,mensagem, strlen(mensagem), 0);
-        if (!strcmp(mensagem,"exit\n")){//refatorar tem 4 comparações iguais a essa
-            printf("Cliente Encerrado\n");
-	        close(meu_socket);
-        }
-    }
-    pthread_t thread_cliente_receber_msg, thread_cliente_enviar_msg;
-
-    //------------------------------------------------------------------------------------------------
-    while(true){
-        pthread_create(&thread_cliente_receber_msg,NULL, receber_msg, NULL);
-        pthread_create(&thread_cliente_enviar_msg,NULL, enviar_msg, NULL);
-        pthread_join(thread_cliente_receber_msg,NULL);
-        pthread_join(thread_cliente_enviar_msg,NULL);
-	}
-}
-//---------------------------------------------------------------------------------------------------------------------------------------------
-int main(int argc, char *argv[]){
-    int escolha;
-
-    //ponteiro para struct que armazena data e hora  
-    struct tm *data_hora_atual;    
-  
-    //variável do tipo time_t para armazenar o tempo em segundos  
-    time_t segundos;
-  
-    //obtendo o tempo em segundos  
-    time(&segundos);   
-  
-    //para converter de segundos para o tempo local utilizamos a função localtime  
-    data_hora_atual = localtime(&segundos);  
-  
-    //para acessar os membros de uma struct usando o ponteiro utilizamos o operador ->
-
-    printf("\nRelógio -> %d:%d:%d\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec);//hora minuto e segundo
-
-    printf("Olá seja bem-vindo ao meu software de comunicação por terminal\n");
-    printf("\n");
-    printf("você pode se conectar a um servidor ou ser o servidor para alguém se conectar a você\n");
-    printf("Digite 1 para ser o servidor\n");
-    printf("Digite 2 para se conectar a um servidor\n");
-    scanf("%d", &escolha);
-    if (escolha == 1){
+    else if(argc==4 && !strcmp("--server",argv[1]) && !strcmp("-p",argv[2])){
         server();
     }
-    else if (escolha == 2){
-        cliente();
-    }
     else{
-        printf("escolha invalida\n");
+        manual("manual\n");
     }
-    return 0;
+    
+
+}//main
+
+void manual(){
+    printf("pass\n");
+}
+
+
+void exitClient(int fd, fd_set *readfds, char fd_array[], int *num_clients){
+    int i;
+    
+    close(fd);
+    FD_CLR(fd, readfds); //clear the leaving client from the set
+    for (i = 0; i < (*num_clients) - 1; i++)
+        if (fd_array[i] == fd)
+            break;          
+    for (; i < (*num_clients) - 1; i++)
+        (fd_array[i]) = (fd_array[i + 1]);
+    (*num_clients)--;
 }
