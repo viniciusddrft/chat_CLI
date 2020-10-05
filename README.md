@@ -1,9 +1,8 @@
 Eu decidi estudar a linguagem C e esse projeto é para por em prática o que aprendi atualmente só preciso entender melhor a lib pthread para deixar esse software do jeito que eu quero se quiser e puder me ajudar com isso agradeço.
 
-li o código do  Dejan Tolj feito em 2005 para ter mais entender uma forma diferente de chegar no resultado que busco e esse código me ajudou muito
+Eu refiz o mesmo codigo em python e com uma logica e estrutura um pouco melhor e quando passei isso para meu codigo em C ele funcionou muito melhor agora estou mais perto de terminar esse projeto.
 
 
 
 
-
-já sei como resolver mais ou menos e em breve estará pronto e impecável
+já sei como resolver mais ou menos e em breve estará pronto e impecável.
