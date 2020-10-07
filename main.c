@@ -60,7 +60,7 @@ void manual(){
     printf("Exemplo de como usar como servidor ->  ./main --server -p <PORT>\n");
     printf("Exemplo de como usar como cliente -> ./main --client -p <PORT> <IP>\n");
 }
-
+//---------------------------------------------------------------------------------------------------------------------------------------------
 void server(int porta){
     //struct usadas na parte do servidor
     struct sockaddr_in localhost;
