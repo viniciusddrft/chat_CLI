@@ -11,8 +11,8 @@ Exemplo de como compilar -> make
 
 como usar
 
-Exemplo de como usar como servidor ->  ./main --server -p <PORT>
+Exemplo de como usar como servidor ->  ./main --server -p PORT
 
-Exemplo de como usar como cliente -> ./main --client -p <PORT> <IP>
+Exemplo de como usar como cliente -> ./main --client -p PORT IP
 
 
