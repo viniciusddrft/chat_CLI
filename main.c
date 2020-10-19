@@ -85,7 +85,7 @@ void server(int porta){
 		exit(1);
 	}
 	else{
-		printf("socket criado com sucesso\n");
+		printf("Aguardando conexão...\n");
 	}
 
     localhost.sin_family = AF_INET;// definindo protocolo
@@ -102,8 +102,8 @@ void server(int porta){
 		perror("accept ");
 		exit(1);
 	}
-    strcpy(mensagem,"seja bem-vindo\n\0");//mensagem a ser enviada no começo da conexão
-
+    
+    printf("Conexão feita com sucesso!!!\n");
     printf("Dê um apelido a pessoa que vai se conectar á você : ");
     scanf("%s", apelido);
     //------------------------------------------------------------------------------------------------
@@ -131,13 +131,10 @@ void server(int porta){
     }
     pthread_t thread_server_receber_msg, thread_server_enviar_msg;
     //------------------------------------------------------------------------------------------------
-    if(send(cliente_socket,mensagem, strlen(mensagem), 0)){//envia a mensagem uma unica vez
-		printf("Aguardando resposta...\n");
-        pthread_create(&thread_server_receber_msg,NULL, receber_msg, NULL);
-        pthread_create(&thread_server_enviar_msg,NULL, enviar_msg, NULL);
-        pthread_join(thread_server_receber_msg,NULL);
-        pthread_join(thread_server_enviar_msg,NULL);
-	}
+    pthread_create(&thread_server_receber_msg,NULL, receber_msg, NULL);
+    pthread_create(&thread_server_enviar_msg,NULL, enviar_msg, NULL);
+    pthread_join(thread_server_receber_msg,NULL);
+    pthread_join(thread_server_enviar_msg,NULL);
 
 
 }
@@ -165,7 +162,7 @@ void cliente(int porta , char ip[]){
 	}
 	else
 	{
-		printf("socket criado com sucesso\n");
+		printf("conectado com sucesso!!!\n");
 	}
 
     printf("Dê um apelido a pessoa que você ira se conectar : ");
