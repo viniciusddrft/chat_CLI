@@ -1,24 +1,22 @@
 O software é um chat simples de texto feito em C
 
 
-finalmente uma versão que pode ser usada qualquer bug entre em contato por favor.
+adicionado nova maneira de definir seu nome no chat
 
-<<<<<<< HEAD
+
 para usar o software primeiramente você precisa compilar
 
-Exemplo de como compilar -> make
+
+COMPILAÇÃO
+
+Para compilar basta usar o comando este comando -> make
 
 
-
-como usar
+COMO USAR
 
 Exemplo de como usar como servidor ->  ./main --server -p PORT
 
 Exemplo de como usar como cliente -> ./main --client -p PORT IP
-=======
-Exemplo de como usar como servidor ->  ./main --server -p <PORT>
-  
-Exemplo de como usar como cliente -> ./main --client -p <PORT> <IP>
->>>>>>> b29635d738932d85729f5cc1f68f16b26f57bd5e
 
 
+OBS: se você quer usar como servidor algumas portas podem pedir permissão de super usuário

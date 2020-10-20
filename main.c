@@ -74,8 +74,10 @@ void server(int porta){
     int meu_socket;
     int tamanho = sizeof(cliente);
     int tamanho_da_resposta;
+    int tamanho_do_nome_cliente;
     char mensagem[4096];
-    char apelido[31];
+    char nome[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
+    char nome_cliente[31];
 
     meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
 
@@ -102,10 +104,18 @@ void server(int porta){
 		perror("accept ");
 		exit(1);
 	}
-    
+
+    //receber nome
+    if((tamanho_do_nome_cliente = recv(cliente_socket,nome_cliente,LEN,0)) > 0){
+        nome_cliente[tamanho_do_nome_cliente] = '\0';
+    }
+
     printf("Conexão feita com sucesso!!!\n");
-    printf("Dê um apelido a pessoa que vai se conectar á você : ");
-    scanf("%s", apelido);
+
+    //enviar nome
+    printf("Coloque um nome de usuário para a conversa (esse nome aparecera para o destinatário) -> ");
+    scanf("%s", nome);
+    (send(cliente_socket,nome, strlen(nome), 0));
     //------------------------------------------------------------------------------------------------
     void *receber_msg(){
         while(true){
@@ -116,7 +126,7 @@ void server(int porta){
                 time(&segundos);
                 data_hora_atual = localtime(&segundos);
 
-                printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, apelido, mensagem);
+                printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, nome_cliente, mensagem);
             }
         }
     }
@@ -150,8 +160,12 @@ void cliente(int porta , char ip[]){
     int meu_socket;
 	int tamanho = sizeof(servidor);
 	int tamanho_da_mensagem;
+    int tamanho_do_nome_server;
 	char mensagem[4096];
-    char apelido[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
+    char nome[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
+    char nome_server[31];
+
+
 
     meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
 
@@ -165,8 +179,6 @@ void cliente(int porta , char ip[]){
 		printf("conectado com sucesso!!!\n");
 	}
 
-    printf("Dê um apelido a pessoa que você ira se conectar : ");
-    scanf("%s", apelido);
 
 	servidor.sin_family = AF_INET;// definindo protocolo
 	servidor.sin_port = htons(porta); 
@@ -177,6 +189,17 @@ void cliente(int porta , char ip[]){
 		perror("connect ");
 		exit(1);
 	}
+
+    //enviar nome
+    printf("Coloque um nome de usuário para a conversa (esse nome aparecera para o destinatário) -> ");
+    scanf("%s",nome);
+    send(meu_socket,nome, strlen(nome), 0);
+
+    //receber nome
+    if((tamanho_do_nome_server = recv(meu_socket,nome_server,LEN,0)) > 0){
+        nome_server[tamanho_do_nome_server] = '\0';
+    }
+
     //------------------------------------------------------------------------------------------------
     void *receber_msg(){
         while(true){
@@ -186,7 +209,7 @@ void cliente(int porta , char ip[]){
                 time(&segundos);
                 data_hora_atual = localtime(&segundos);
 
-                printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, apelido, mensagem);
+                printf("%d:%d:%d| %s -> %s\n",data_hora_atual->tm_hour, data_hora_atual->tm_min, data_hora_atual->tm_sec, nome_server, mensagem);
             }
         }
     }
