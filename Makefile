@@ -1,4 +1,4 @@
 all:
-	gcc -o main main.c -lpthread
+	gcc Main.c Server.c Client.c -o Main -lpthread
 clean:
-	rm -f main
+	rm -f Main
