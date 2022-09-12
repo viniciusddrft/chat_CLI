@@ -32,7 +32,7 @@ void server(int porta){
     int meu_socket;
     int tamanho = sizeof(cliente);
     int tamanho_da_resposta;
-    int tamanho_do_nome_cliente;
+    short unsigned int tamanho_do_nome_cliente;
     char mensagem[4096];
     char nome[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
     char nome_cliente[31];
@@ -79,7 +79,6 @@ void server(int porta){
         while(true){
             if((tamanho_da_resposta = recv(cliente_socket,mensagem,LEN,0)) > 0){
                 mensagem[tamanho_da_resposta-1] = '\0';
-
 
                 time(&segundos);
                 data_hora_atual = localtime(&segundos);

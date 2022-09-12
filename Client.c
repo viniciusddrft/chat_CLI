@@ -19,8 +19,6 @@
 #define LEN 4096
 
 
-
-
 void cliente(int porta , char ip[]){
     //struct usadas na parte do cliente
     struct sockaddr_in servidor;
@@ -32,22 +30,19 @@ void cliente(int porta , char ip[]){
     int meu_socket;
 	int tamanho = sizeof(servidor);
 	int tamanho_da_mensagem;
-    int tamanho_do_nome_server;
+    short unsigned int tamanho_do_nome_server;
 	char mensagem[4096];
     char nome[31];// o ultimo caracter é o indicador de final da string e pra poder usar 30 caracters coloquei o numero 31
     char nome_server[31];
 
 
-
     meu_socket = socket(AF_INET, SOCK_STREAM, 0);//criando socket TCP/IP usando IPV4
 
-	if (meu_socket == -1)
-	{
+	if (meu_socket == -1){
 		perror("socket");
 		exit(1);
 	}
-	else
-	{
+	else{
 		printf("conectado com sucesso!!!\n");
 	}
 
